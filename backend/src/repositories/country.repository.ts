@@ -43,3 +43,10 @@ export async function deleteCountryById(id: number) {
     where: { id },
   });
 }
+
+export async function updateCountry(id: number, name: string) {
+    return prisma.countries.update({
+        where: {id},
+        data: {name}
+    })
+}

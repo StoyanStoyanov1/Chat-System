@@ -5,7 +5,8 @@ import {
   findCountriesPaginated,
   countCountries,
   findCountryById,
-  deleteCountryById
+  deleteCountryById,
+  updateCountry
 } from "../repositories/country.repository.js";
 
 export async function createCountryService(name: string) {
@@ -58,4 +59,20 @@ export async function deleteCountryByIdService(id: number) {
 
 export async function getCountryByIdService(id: number) {
   return findCountryById(id);
+}
+
+export async function updateCountryService(id: number, name: string) {
+    const country = await findCountryById(id);
+
+    if (!country) {
+        return null;
+    }
+
+    const trimmedName = name.trim();
+
+    if (country.name === trimmedName) {
+        return country;
+    }
+
+    return updateCountry(id, trimmedName);
 }
