@@ -3,6 +3,12 @@ import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma/client.js";
 
 import {
+  countryBodySchema,
+  countryParamsSchema,
+  countryQuerySchema,
+} from "../schemas/country.schema.js";
+
+import {
   createCountryService,
   getCountriesService,
   getCountryByIdService,
@@ -10,32 +16,35 @@ import {
   updateCountryService,
 } from "../services/country.service.js";
 
-// CREATE - POST /countries
 export async function createCountry(
   req: Request,
   res: Response
 ): Promise<void> {
+  const parsed = countryBodySchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({
+      message: "Invalid country data",
+      errors: parsed.error.issues,
+    });
+    return;
+  }
+
   try {
-    const { name } = req.body ?? {};
-
-    if (typeof name !== "string" || !name.trim()) {
-      res.status(400).json({
-        message: "Country name is required",
-      });
-      return;
-    }
-
-    const country = await createCountryService(name.trim());
+    const country = await createCountryService(
+      parsed.data.name
+    );
 
     res.status(201).json(country);
-  } catch (error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2002") {
-        res.status(409).json({
-          message: "Country already exists",
-        });
-        return;
-      }
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      res.status(409).json({
+        message: "Country already exists",
+      });
+      return;
     }
 
     console.error("Create country error:", error);
@@ -46,42 +55,37 @@ export async function createCountry(
   }
 }
 
-// READ ALL - GET /countries
 export async function getCountries(
   req: Request,
   res: Response
 ): Promise<void> {
+  const parsed = countryQuerySchema.safeParse(req.query);
+
+  if (!parsed.success) {
+    res.status(400).json({
+      message: "Invalid pagination parameters",
+      errors: parsed.error.issues,
+    });
+    return;
+  }
+
   try {
     const hasPagination =
       req.query.page !== undefined ||
       req.query.size !== undefined;
 
     if (!hasPagination) {
-      const result = await getCountriesService();
+      const countries = await getCountriesService();
 
-      res.status(200).json(result);
+      res.status(200).json(countries);
       return;
     }
 
-    const page = Number(req.query.page ?? 1);
-    const size = Number(req.query.size ?? 10);
-
-    if (
-      !Number.isSafeInteger(page) ||
-      !Number.isSafeInteger(size) ||
-      page < 1 ||
-      size < 1 ||
-      size > 100
-    ) {
-      res.status(400).json({
-        message: "Invalid pagination parameters",
-      });
-      return;
-    }
+    const { page, size } = parsed.data;
 
     const offset = (page - 1) * size;
 
-    if (!Number.isSafeInteger(offset)) {
+    if (!Number.isSafeInteger(offset) || offset > 2147483647) {
       res.status(400).json({
         message: "Pagination offset is too large",
       });
@@ -107,17 +111,20 @@ export async function getCountryById(
   req: Request,
   res: Response
 ): Promise<void> {
+  const parsed = countryParamsSchema.safeParse(req.params);
+
+  if (!parsed.success) {
+    res.status(400).json({
+      message: "Invalid country ID",
+      errors: parsed.error.issues,
+    });
+    return;
+  }
+
   try {
-    const id = Number(req.params.id);
-
-    if (!Number.isSafeInteger(id) || id < 1) {
-      res.status(400).json({
-        message: "Invalid country ID",
-      });
-      return;
-    }
-
-    const country = await getCountryByIdService(id);
+    const country = await getCountryByIdService(
+      parsed.data.id
+    );
 
     if (!country) {
       res.status(404).json({
@@ -126,9 +133,7 @@ export async function getCountryById(
       return;
     }
 
-    res.status(200).json({
-      country,
-    });
+    res.status(200).json({ country });
   } catch (error) {
     console.error("Get country by ID error:", error);
 
@@ -142,40 +147,37 @@ export async function updateCountry(
   req: Request,
   res: Response
 ): Promise<void> {
+  const params = countryParamsSchema.safeParse(req.params);
+  const body = countryBodySchema.safeParse(req.body);
+
+  if (!params.success || !body.success) {
+    res.status(400).json({
+      message: "Invalid country data",
+      errors: [
+        ...(!params.success ? params.error.issues : []),
+        ...(!body.success ? body.error.issues : []),
+      ],
+    });
+    return;
+  }
+
   try {
-    const id = Number(req.params.id);
-    const { name } = req.body ?? {};
-
-    if (!Number.isSafeInteger(id) || id < 1) {
-      res.status(400).json({
-        message: "Invalid country ID",
-      });
-      return;
-    }
-
-    if (typeof name !== "string" || !name.trim()) {
-      res.status(400).json({
-        message: "Country name is invalid",
-      });
-      return;
-    }
-
     const country = await updateCountryService(
-      id,
-      name.trim()
+      params.data.id,
+      body.data.name
     );
 
     if (!country) {
-    res.status(404).json({
-        message: "Country not found"
-    });
-    return;
-}
+      res.status(404).json({
+        message: "Country not found",
+      });
+      return;
+    }
 
     res.status(200).json({
       data: country,
     });
-  } catch (error: unknown) {
+  } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2025") {
         res.status(404).json({
@@ -204,20 +206,21 @@ export async function deleteCountryById(
   req: Request,
   res: Response
 ): Promise<void> {
+  const parsed = countryParamsSchema.safeParse(req.params);
+
+  if (!parsed.success) {
+    res.status(400).json({
+      message: "Invalid country ID",
+      errors: parsed.error.issues,
+    });
+    return;
+  }
+
   try {
-    const id = Number(req.params.id);
-
-    if (!Number.isSafeInteger(id) || id < 1) {
-      res.status(400).json({
-        message: "Invalid country ID",
-      });
-      return;
-    }
-
-    await deleteCountryByIdService(id);
+    await deleteCountryByIdService(parsed.data.id);
 
     res.status(204).send();
-  } catch (error: unknown) {
+  } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2025") {
         res.status(404).json({
@@ -234,7 +237,7 @@ export async function deleteCountryById(
       }
     }
 
-    console.error("Delete country by ID error:", error);
+    console.error("Delete country error:", error);
 
     res.status(500).json({
       message: "Internal server error",
