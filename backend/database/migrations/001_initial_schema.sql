@@ -42,3 +42,9 @@ CREATE TABLE employees (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX countries_name_unique
+ON countries (LOWER(name));
+
+CREATE UNIQUE INDEX cities_country_name_unique
+ON cities (country_id, LOWER(name));

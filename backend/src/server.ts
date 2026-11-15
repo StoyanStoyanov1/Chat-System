@@ -1,13 +1,14 @@
 import "dotenv/config";
 import express from "express";
 import {pool} from "./config/db.js";
+import {countryRoutes} from "./routes"
 
 const app = express();
 const PORT = Number(process.env.PORT);
 
 app.use(express.json());
 
-
+app.use("/countries", countryRoutes);
 
 async function sartServer() {
     try {
