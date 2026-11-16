@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import {pool} from "./config/db.js";
 import {countryRoutes} from "./routes"
+import { connectRedis } from "./config/redis.js";
 
 const app = express();
 const PORT = Number(process.env.PORT);
@@ -13,7 +14,7 @@ app.use("/countries", countryRoutes);
 async function sartServer() {
     try {
         await pool.query("SELECT 1");
-
+        await connectRedis();
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
             console.log("Database connection successful");
