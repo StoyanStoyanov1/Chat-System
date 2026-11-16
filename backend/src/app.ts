@@ -3,48 +3,84 @@ import express from "express";
 import helmet from "helmet";
 import * as swaggerUi from "swagger-ui-express";
 
-import { countryRoutes } from "./routes/index.js";
+// Configuration
+import { corsMiddleware } from "./config/cors.js";
 
+// Routes
+import { countryRoutes } from "./routes/index.js";
+import { healthRoutes } from "./routes/health.routes.js";
+import { metricsRoutes } from "./routes/metrics.routes.js";
+
+// Middleware
 import { httpLogger } from "./middleware/httpLogger.js";
+import { metricsMiddleware } from "./middleware/metricsMiddleware.js";
 import { apiRateLimiter } from "./middleware/rateLimiter.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
-import { corsMiddleware } from "./config/cors.js";
+// OpenAPI documentation
 import { openApiDocument } from "./docs/openapi.js";
-
-import { healthRoutes } from "./routes/health.routes.js";
 
 export const app = express();
 
-// Logging and CORS
+
+// HTTP logging
 app.use(httpLogger);
+
+// Prometheus HTTP metrics
+app.use(metricsMiddleware);
+
+// CORS
 app.use(corsMiddleware);
 
-// Swagger UI: keep other Helmet protections,
-// but disable CSP for this documentation route.
+
+// Swagger UI
+
 app.use(
   "/api-docs",
-  helmet({ contentSecurityPolicy: false }),
+  helmet({
+    contentSecurityPolicy: false,
+  }),
   swaggerUi.serve,
   swaggerUi.setup(openApiDocument)
 );
 
-// Full Helmet protection for the remaining routes
+// Security headers for other routes
 app.use(helmet());
 
-// Parse JSON
+
+// Request Parsing
+
+
 app.use(express.json());
 
-// OpenAPI JSON document
+
+// Documentation
 app.get("/api-docs.json", (_req, res) => {
   res.json(openApiDocument);
 });
 
-// Health checks
+
+// Health Checks
+
+
 app.use("/health", healthRoutes);
 
-// API routes
-app.use("/countries", apiRateLimiter, countryRoutes);
 
-// Centralized error handling
+// Prometheus Metrics
+
+
+app.use("/metrics", metricsRoutes);
+
+
+// API Routes
+
+app.use(
+  "/countries",
+  apiRateLimiter,
+  countryRoutes
+);
+
+
+
+// Always register after routes
 app.use(errorHandler);
