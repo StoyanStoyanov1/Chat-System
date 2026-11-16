@@ -53,7 +53,35 @@ services:
       - prometheus
 
 
+  loki:
+    image: grafana/loki:3.7.0
+    restart: unless-stopped
+    command:
+      - "-config.file=/etc/loki/config.yaml"
+    volumes:
+      - ./monitoring/loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki_data:/loki
+
+  alloy:
+    image: grafana/alloy:latest
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./monitoring/logs:/var/log/hotel-manager:ro
+      - alloy_data:/var/lib/alloy
+    depends_on:
+      - loki
+
+
 volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
+  loki_data:
+  alloy_data:
+
+  
