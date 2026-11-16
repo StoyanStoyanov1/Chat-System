@@ -1,4 +1,4 @@
-import countryRoutes from "./country.routes";
+import countryRoutes from "./country.routes.js";
 
 export {
     countryRoutes,
