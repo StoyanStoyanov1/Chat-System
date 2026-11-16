@@ -1,0 +1,17 @@
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+model Users {
+  id            Int    @id @default(autoincrement())
+  email         String @unique
+  password_hash String
+  role          Role   @default(EMPLOYEE)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  profile Profiles?
+}

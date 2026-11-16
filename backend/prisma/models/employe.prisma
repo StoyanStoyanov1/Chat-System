@@ -1,4 +1,4 @@
-model employees {
+model Employees {
   id         Int      @id @default(autoincrement())
   first_name String   @db.VarChar(30)
   last_name  String   @db.VarChar(30)
@@ -8,6 +8,6 @@ model employees {
   hotel_id   Int
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
-  cities     cities   @relation(fields: [city_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  hotels     hotels   @relation(fields: [hotel_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cities     Cities   @relation(fields: [city_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  hotels     Hotels   @relation(fields: [hotel_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
