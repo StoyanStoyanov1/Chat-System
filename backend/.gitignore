@@ -32,3 +32,6 @@ src/generated/prisma/
 .agents/
 .claude/
 .windsurf/
+
+# Database backups
+/backups/

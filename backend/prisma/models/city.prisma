@@ -1,0 +1,9 @@
+model cities {
+  id         Int         @id @default(autoincrement())
+  name       String      @db.VarChar(50)
+  country_id Int
+  created_at DateTime    @default(now()) @db.Timestamptz(6)
+  countries  countries   @relation(fields: [country_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  employees  employees[]
+  hotels     hotels[]
+}
