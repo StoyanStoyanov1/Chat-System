@@ -202,4 +202,123 @@ describe("Countries API", () => {
 
     expect(getResponse.status).toBe(404);
   });
+
+
+  // ==================================
+  // ERROR HANDLING
+  // ==================================
+
+  it("POST /countries rejects duplicate names", async () => {
+    const country = await createTestCountry();
+
+    const response = await request(app)
+      .post("/countries")
+      .send({ name: country.name.toUpperCase() });
+
+    expect(response.status).toBe(409);
+    expect(response.body.message).toBe(
+      "Resource already exists"
+    );
+  });
+
+  it("PUT /countries/:id rejects duplicate names", async () => {
+    const first = await createTestCountry();
+    const second = await createTestCountry();
+
+    const response = await request(app)
+      .put(`/countries/${second.id}`)
+      .send({ name: first.name });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("PUT /countries/:id returns 404 for missing country", async () => {
+    const response = await request(app)
+      .put("/countries/999999999")
+      .send({ name: uniqueCountryName() });
+
+    expect(response.status).toBe(404);
+  });
+
+  it("DELETE /countries/:id returns 404 for missing country", async () => {
+    const response = await request(app)
+      .delete("/countries/999999999");
+
+    expect(response.status).toBe(404);
+  });
+
+  // ==================================
+  // REDIS CACHE INVALIDATION
+  // ==================================
+
+  it("invalidates countries cache after CREATE", async () => {
+    // Populate the cache first
+    await request(app).get("/countries");
+
+    const country = await createTestCountry();
+
+    // CREATE must invalidate the cache
+    const cached = await redis.get("countries:all");
+
+    expect(cached).toBeNull();
+
+    // Next GET must include the new country
+    const response = await request(app).get("/countries");
+
+    expect(response.status).toBe(200);
+
+    expect(
+      response.body.data.some(
+        (item: { id: number }) => item.id === country.id
+      )
+    ).toBe(true);
+  });
+
+  it("invalidates countries cache after UPDATE", async () => {
+    const country = await createTestCountry();
+
+    // Populate cache
+    await request(app).get("/countries");
+
+    const newName = uniqueCountryName();
+
+    const updateResponse = await request(app)
+      .put(`/countries/${country.id}`)
+      .send({ name: newName });
+
+    expect(updateResponse.status).toBe(200);
+
+    expect(await redis.get("countries:all")).toBeNull();
+
+    const response = await request(app).get("/countries");
+
+    const updated = response.body.data.find(
+      (item: { id: number }) => item.id === country.id
+    );
+
+    expect(updated?.name).toBe(newName);
+  });
+
+  it("invalidates countries cache after DELETE", async () => {
+    const country = await createTestCountry();
+
+    // Populate cache
+    await request(app).get("/countries");
+
+    const deleteResponse = await request(app)
+      .delete(`/countries/${country.id}`);
+
+    expect(deleteResponse.status).toBe(204);
+
+    expect(await redis.get("countries:all")).toBeNull();
+
+    const response = await request(app).get("/countries");
+
+    expect(
+      response.body.data.some(
+        (item: { id: number }) => item.id === country.id
+      )
+    ).toBe(false);
+  });
+
 });
