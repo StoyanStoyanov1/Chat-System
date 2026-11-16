@@ -12,6 +12,8 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { corsMiddleware } from "./config/cors.js";
 import { openApiDocument } from "./docs/openapi.js";
 
+import { healthRoutes } from "./routes/health.routes.js";
+
 export const app = express();
 
 // Logging and CORS
@@ -37,6 +39,9 @@ app.use(express.json());
 app.get("/api-docs.json", (_req, res) => {
   res.json(openApiDocument);
 });
+
+// Health checks
+app.use("/health", healthRoutes);
 
 // API routes
 app.use("/countries", apiRateLimiter, countryRoutes);
