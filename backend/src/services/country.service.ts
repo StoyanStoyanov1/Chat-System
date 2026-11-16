@@ -1,5 +1,6 @@
 
 import { redis } from "../config/redis.js";
+import { logger } from "../config/logger.js";
 
 import {
   insertCountry,
@@ -17,13 +18,26 @@ const CACHE_TTL = 60;
 async function invalidateCountriesCache(): Promise<void> {
   try {
     await redis.del(COUNTRIES_CACHE_KEY);
+
+    logger.debug(
+      { cacheKey: COUNTRIES_CACHE_KEY },
+      "Countries cache invalidated"
+    );
   } catch (error) {
-    console.error("Redis cache invalidation error:", error);
+    logger.warn(
+      { err: error, cacheKey: COUNTRIES_CACHE_KEY },
+      "Failed to invalidate countries cache"
+    );
   }
 }
 
 export async function createCountryService(name: string) {
   const country = await insertCountry(name.trim());
+
+  logger.info(
+    { countryId: country.id },
+    "Country created"
+  );
 
   await invalidateCountriesCache();
 
@@ -41,15 +55,24 @@ export async function getCountriesService(
       const cached = await redis.get(COUNTRIES_CACHE_KEY);
 
       if (cached !== null) {
-        console.log("Cache HIT");
+        logger.debug(
+          { cacheKey: COUNTRIES_CACHE_KEY },
+          "Countries cache HIT"
+        );
 
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.error("Redis cache read error:", error);
+      logger.warn(
+        { err: error, cacheKey: COUNTRIES_CACHE_KEY },
+        "Failed to read countries cache"
+      );
     }
 
-    console.log("Cache MISS");
+    logger.debug(
+      { cacheKey: COUNTRIES_CACHE_KEY },
+      "Countries cache MISS"
+    );
 
     const countries = await findAllCountries();
 
@@ -64,8 +87,19 @@ export async function getCountriesService(
         JSON.stringify(result),
         { EX: CACHE_TTL }
       );
+
+      logger.debug(
+        {
+          cacheKey: COUNTRIES_CACHE_KEY,
+          ttl: CACHE_TTL,
+        },
+        "Countries cached successfully"
+      );
     } catch (error) {
-      console.error("Redis cache write error:", error);
+      logger.warn(
+        { err: error, cacheKey: COUNTRIES_CACHE_KEY },
+        "Failed to write countries cache"
+      );
     }
 
     return result;
@@ -81,6 +115,15 @@ export async function getCountriesService(
     offset
   );
 
+  logger.debug(
+    {
+      page,
+      size,
+      total,
+    },
+    "Countries retrieved with pagination"
+  );
+
   return {
     total,
     data: countries,
@@ -92,6 +135,7 @@ export async function getCountriesService(
   };
 }
 
+// GET BY ID
 export async function getCountryByIdService(id: number) {
   return findCountryById(id);
 }
@@ -109,12 +153,22 @@ export async function updateCountryService(
   const trimmedName = name.trim();
 
   if (country.name === trimmedName) {
+    logger.debug(
+      { countryId: id },
+      "Country update skipped: no changes"
+    );
+
     return country;
   }
 
   const updatedCountry = await updateCountry(
     id,
     trimmedName
+  );
+
+  logger.info(
+    { countryId: id },
+    "Country updated"
   );
 
   await invalidateCountriesCache();
@@ -124,6 +178,11 @@ export async function updateCountryService(
 
 export async function deleteCountryByIdService(id: number) {
   const deletedCountry = await deleteCountryById(id);
+
+  logger.info(
+    { countryId: id },
+    "Country deleted"
+  );
 
   await invalidateCountriesCache();
 
