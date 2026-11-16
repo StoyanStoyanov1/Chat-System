@@ -1,5 +1,6 @@
 
 import express from "express";
+import helmet from "helmet";
 import * as swaggerUi from "swagger-ui-express";
 
 import { countryRoutes } from "./routes/index.js";
@@ -8,21 +9,31 @@ import { httpLogger } from "./middleware/httpLogger.js";
 import { apiRateLimiter } from "./middleware/rateLimiter.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
+import { corsMiddleware } from "./config/cors.js";
 import { openApiDocument } from "./docs/openapi.js";
 
 export const app = express();
 
-// Global middleware
+// Logging and CORS
 app.use(httpLogger);
-app.use(express.json());
+app.use(corsMiddleware);
 
-// Swagger documentation
+// Swagger UI: keep other Helmet protections,
+// but disable CSP for this documentation route.
 app.use(
   "/api-docs",
+  helmet({ contentSecurityPolicy: false }),
   swaggerUi.serve,
   swaggerUi.setup(openApiDocument)
 );
 
+// Full Helmet protection for the remaining routes
+app.use(helmet());
+
+// Parse JSON
+app.use(express.json());
+
+// OpenAPI JSON document
 app.get("/api-docs.json", (_req, res) => {
   res.json(openApiDocument);
 });
