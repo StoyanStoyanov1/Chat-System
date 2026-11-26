@@ -1,6 +1,10 @@
 # compiled output
 /dist
-/node_modules
+node_modules/
+dist/
+coverage/
+.env
+.env.*
 /build
 
 # TypeScript build cache
